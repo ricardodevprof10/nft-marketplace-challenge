@@ -57,7 +57,7 @@ test('adiciona um NFT e conclui o checkout simulado', async ({
 
   await expect(page).toHaveURL(/\/checkout/)
 
-  await page.getByLabel('Carteira cadastrada').selectOption({ label: 'Carteira de teste' })
+  await page.getByLabel('Carteira cadastrada').selectOption({ index: 1 })
   await page.getByRole('button', { name: 'Conectar carteira simulada' }).click()
   const confirmButton = page.getByRole('button', { name: 'Confirmar pedido simulado' })
   await expect(confirmButton).toBeEnabled()
