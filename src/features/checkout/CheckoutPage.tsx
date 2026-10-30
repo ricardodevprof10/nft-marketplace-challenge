@@ -9,12 +9,17 @@ import {
   useCheckout,
   useCheckoutQuote,
 } from './useCheckout'
-import type { PaymentScenario } from '../../types/order'
+import type { PaymentScenario, CheckoutNetwork } from '../../types/order'
+import { useWallets } from '../wallets/useWallets'
 
 export function CheckoutPage() {
   const navigate = useNavigate()
   const { data: cart, isPending, isError } = useCart()
   const checkout = useCheckout()
+  const wallets = useWallets()
+  const [walletId, setWalletId] = useState('')
+  const [network, setNetwork] = useState<CheckoutNetwork>('ethereum')
+  const [connected, setConnected] = useState(false)
 
   const [couponInput, setCouponInput] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState('')
@@ -45,7 +50,10 @@ export function CheckoutPage() {
       !cart ||
       cart.items.length === 0 ||
       !quote.data ||
-      submitting.current
+      submitting.current ||
+      !walletId ||
+      !connected ||
+      !wallets.data?.some(wallet => wallet.id === walletId)
     ) {
       return
     }
@@ -62,6 +70,8 @@ export function CheckoutPage() {
         requestId: requestId.current,
         couponCode: appliedCoupon,
         paymentScenario: scenario,
+        walletId,
+        network,
       })
 
       await navigate({
@@ -271,6 +281,52 @@ export function CheckoutPage() {
             </div>
           )}
 
+          <div className="mt-8 space-y-4 border-t border-neutral-700 pt-6">
+            <h3 className="font-semibold">Carteira e rede</h3>
+            <label htmlFor="checkout-wallet" className="block text-sm">Carteira cadastrada</label>
+            <select
+              id="checkout-wallet"
+              value={walletId}
+              onChange={(event) => { setWalletId(event.target.value); setConnected(false); requestId.current = null }}
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-3 text-white"
+            >
+              <option value="">Selecione uma carteira</option>
+              {wallets.data?.map(wallet => (
+                <option key={wallet.id} value={wallet.id}>
+                  {wallet.label}{wallet.isPrimary ? ' (principal)' : ''}
+                </option>
+              ))}
+            </select>
+            {wallets.isPending && <p role="status" className="text-sm text-neutral-400">Carregando carteiras...</p>}
+            {wallets.isError && <p role="alert" className="text-sm text-red-400">Falha ao carregar carteiras.</p>}
+            {!wallets.isPending && !wallets.data?.length && (
+              <p className="text-sm text-neutral-300">
+                Cadastre uma carteira em <Link to="/wallets" className="underline text-red-400">Minhas carteiras</Link>.
+              </p>
+            )}
+            <label htmlFor="checkout-network" className="block text-sm">Rede</label>
+            <select
+              id="checkout-network"
+              value={network}
+              onChange={(event) => { setNetwork(event.target.value as CheckoutNetwork); setConnected(false); requestId.current = null }}
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-3 text-white"
+            >
+              <option value="ethereum">Ethereum (simulada)</option>
+              <option value="polygon">Polygon (simulada)</option>
+            </select>
+            <button
+              type="button"
+              disabled={!walletId}
+              onClick={() => { setConnected(value => !value); requestId.current = null }}
+              className="w-full rounded-lg border border-neutral-700 px-4 py-3 hover:border-red-500 disabled:opacity-50"
+            >
+              {connected ? 'Desconectar carteira simulada' : 'Conectar carteira simulada'}
+            </button>
+            <p role="status" className="text-xs text-neutral-400">
+              {connected ? 'Carteira conectada para esta simulação.' : 'Conecte uma carteira para continuar. Nenhuma extensão ou blockchain real será utilizada.'}
+            </p>
+          </div>
+
           <div className="mt-8">
             <label
               htmlFor="payment-scenario"
@@ -315,7 +371,10 @@ export function CheckoutPage() {
             disabled={
               checkout.isPending ||
               !quote.data ||
-              quote.isFetching
+              quote.isFetching ||
+              !walletId ||
+              !connected ||
+              !wallets.data?.some(wallet => wallet.id === walletId)
             }
             onClick={() => void confirmOrder()}
             className="mt-8 w-full rounded-lg bg-red-600 px-5 py-4 font-semibold hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400 disabled:opacity-50"
