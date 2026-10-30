@@ -8,6 +8,7 @@ import {
 import { AppLayout } from '../components/layout/AppLayout'
 import { PagePlaceholder } from '../components/layout/PagePlaceholder'
 import { NFTMarketplacePage } from '../features/nfts/NFTMarketplacePage'
+import { NFTDetailPage } from '../features/nfts/NFTDetailPage'
 
 const rootRoute = createRootRoute({
   component: AppLayout,
@@ -23,18 +24,16 @@ const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   validateSearch: (search: Record<string, unknown>) => {
-    const sortOptions = [
+    const validSorts = [
       'newest',
       'price_asc',
       'price_desc',
     ] as const
 
-    const rawSort = search.sort
-
     const sort =
-      typeof rawSort === 'string' &&
-      sortOptions.some((option) => option === rawSort)
-        ? (rawSort as (typeof sortOptions)[number])
+      typeof search.sort === 'string' &&
+      validSorts.some((value) => value === search.sort)
+        ? (search.sort as (typeof validSorts)[number])
         : 'newest'
 
     const rawPage = Number(search.page ?? 1)
@@ -61,12 +60,7 @@ const homeRoute = createRoute({
 const nftRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/nft/$nftId',
-  component: () => (
-    <PagePlaceholder
-      title="Detalhes do NFT"
-      description="Informações, edições e compra do NFT."
-    />
-  ),
+  component: NFTDetailPage,
 })
 
 const cartRoute = createRoute({
