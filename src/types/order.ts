@@ -17,6 +17,7 @@ export interface CheckoutInput {
   walletId?: string
   network?: CheckoutNetwork
   requestId: string
+  expectedTotalEth?: string
   couponCode?: string
   paymentScenario?: PaymentScenario
 }
@@ -42,6 +43,7 @@ export interface Order {
   createdAt: string
   walletId?: string
   walletAddress?: string
+  requestFingerprint?: string
   network?: CheckoutNetwork
   quote?: CheckoutQuote
 
