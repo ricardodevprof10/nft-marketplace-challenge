@@ -1,4 +1,5 @@
 
+import { NFTCatalog } from '../features/nfts/NFTCatalog'
 import {
   createRootRoute,
   createRoute,
@@ -18,16 +19,31 @@ const rootRoute = createRootRoute({
   ),
 })
 
+
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: () => (
-    <PagePlaceholder
-      title="Explorar NFTs"
-      description="Catálogo, busca, filtros e coleções."
-    />
+    <main className="mx-auto min-h-[70vh] max-w-7xl px-5 py-12">
+      <header className="mb-10">
+        <p className="mb-3 text-sm font-semibold text-red-500">
+          NFT Marketplace
+        </p>
+
+        <h1 className="text-4xl font-bold md:text-5xl">
+          Explore NFTs
+        </h1>
+
+        <p className="mt-4 text-neutral-400">
+          Descubra coleções digitais e novas oportunidades.
+        </p>
+      </header>
+
+      <NFTCatalog />
+    </main>
   ),
 })
+
 
 const nftRoute = createRoute({
   getParentRoute: () => rootRoute,
