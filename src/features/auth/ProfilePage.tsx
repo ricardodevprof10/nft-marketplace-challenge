@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useAuth, useAuthActions } from './useAuth'
 
@@ -17,6 +17,7 @@ export function ProfilePage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
+  const avatarInput = useRef<HTMLInputElement>(null)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -29,6 +30,32 @@ export function ProfilePage() {
     setEmail(user.email)
     setAvatarUrl(user.avatarUrl ?? '')
   }, [user])
+
+  async function selectAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5_000_000) {
+      setProfileMessage('Escolha uma imagem JPG, PNG ou WebP de até 5 MB.')
+      return
+    }
+    try {
+      const url = URL.createObjectURL(file)
+      try {
+        const image = new Image()
+        image.src = url
+        await image.decode()
+        const canvas = document.createElement('canvas')
+        canvas.width = canvas.height = 256
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('Canvas indisponível')
+        const side = Math.min(image.width, image.height)
+        ctx.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, 256, 256)
+        setAvatarUrl(canvas.toDataURL('image/webp', 0.7))
+        setProfileMessage('Foto selecionada. Clique em Salvar perfil.')
+      } finally { URL.revokeObjectURL(url) }
+    } catch { setProfileMessage('Não foi possível ler essa imagem.') }
+  }
 
   async function handleProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -79,13 +106,11 @@ export function ProfilePage() {
 
       <section className="mt-10 rounded-xl border border-neutral-800 bg-neutral-900 p-6 sm:p-8">
         <div className="flex items-center gap-5">
-          {user.avatarUrl ? (
-            <img src={user.avatarUrl} alt="Avatar do perfil" className="h-16 w-16 rounded-full object-cover" referrerPolicy="no-referrer" />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-900 text-2xl font-bold">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <input ref={avatarInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label="Selecionar foto" onChange={(event) => void selectAvatar(event)} />
+          <button type="button" onClick={() => avatarInput.current?.click()} title="Alterar foto" aria-label="Alterar foto do perfil" className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-red-900 text-2xl font-bold hover:ring-2 hover:ring-red-500 focus-visible:ring-2 focus-visible:ring-red-500">
+            {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : user.name.charAt(0).toUpperCase()}
+            <span className="absolute bottom-0 w-full bg-black/70 text-center text-[10px]">Editar</span>
+          </button>
           <div>
             <h2 className="text-2xl font-semibold">{user.name}</h2>
             <p className="mt-1 text-neutral-400">{user.email}</p>
@@ -106,10 +131,10 @@ export function ProfilePage() {
             <label htmlFor="profile-email">E-mail</label>
             <input id="profile-email" className={fieldClass} type="email" required value={email} onChange={event => setEmail(event.target.value)} />
           </div>
-          <div>
-            <label htmlFor="profile-avatar">Avatar (URL HTTPS da imagem)</label>
-            <input id="profile-avatar" className={fieldClass} type="url" placeholder="https://exemplo.com/avatar.png" value={avatarUrl} onChange={event => setAvatarUrl(event.target.value)} />
-            <p className="mt-2 text-sm text-neutral-400">Deixe em branco para usar a inicial do seu nome.</p>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={() => avatarInput.current?.click()} className="rounded-lg border border-neutral-700 px-5 py-3 hover:border-red-500">Escolher foto do dispositivo</button>
+            {avatarUrl && <button type="button" onClick={() => { setAvatarUrl(''); setProfileMessage('Foto removida da prévia. Clique em Salvar perfil.') }} className="rounded-lg border border-neutral-700 px-5 py-3 hover:border-red-500">Remover foto</button>}
+            <p className="w-full text-sm text-neutral-400">JPG, PNG ou WebP, até 5 MB.</p>
           </div>
           <button className={buttonClass} type="submit" disabled={updateProfile.isPending}>
             {updateProfile.isPending ? 'Salvando...' : 'Salvar perfil'}
