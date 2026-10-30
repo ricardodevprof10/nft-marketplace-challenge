@@ -10,6 +10,7 @@ export type NFT = {
   available: number
   edition: string
   category: string
+  version?: number
 }
 
 export type NFTFilters = {

@@ -19,7 +19,6 @@ function isAllowedOrigin(
   origin: string | undefined,
 ): boolean {
   if (!origin) return true
-
   if (allowedOrigins.has(origin)) return true
 
   if (process.env.NODE_ENV !== 'production') {
@@ -37,6 +36,34 @@ function isAllowedOrigin(
   }
 
   return false
+}
+
+function isRecord(
+  value: unknown,
+): value is Record<string, unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value)
+  )
+}
+
+function validId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 100
+  )
+}
+
+function validVersion(
+  value: unknown,
+): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value >= 1
+  )
 }
 
 const httpServer = createServer((request, response) => {
@@ -102,55 +129,81 @@ io.on('connection', (socket) => {
     timestamp: new Date().toISOString(),
   })
 
-  socket.on(
-    'nft:stock-changed',
-    (payload: unknown) => {
-      if (
-        !payload ||
-        typeof payload !== 'object'
-      ) {
-        return
-      }
+  socket.on('nft:stock-changed', (payload: unknown) => {
+    if (!isRecord(payload)) return
 
-      const data = payload as Record<string, unknown>
+    const { nftIds, orderId } = payload
 
-      if (
-        !Array.isArray(data.nftIds) ||
-        data.nftIds.length === 0 ||
-        data.nftIds.length > 100 ||
-        !data.nftIds.every(
-          (id) =>
-            typeof id === 'string' &&
-            id.length > 0 &&
-            id.length <= 100,
-        )
-      ) {
-        return
-      }
+    if (
+      !Array.isArray(nftIds) ||
+      nftIds.length === 0 ||
+      nftIds.length > 100 ||
+      !nftIds.every(validId)
+    ) {
+      return
+    }
 
-      const event = {
-        nftIds: data.nftIds as string[],
-        orderId:
-          typeof data.orderId === 'string' &&
-          data.orderId.length <= 100
-            ? data.orderId
-            : undefined,
-        timestamp: new Date().toISOString(),
-      }
+    const event = {
+      nftIds: nftIds as string[],
+      orderId: validId(orderId)
+        ? orderId
+        : undefined,
+      timestamp: new Date().toISOString(),
+    }
 
-      socket.broadcast.emit(
-        'nft:stock-updated',
-        event,
+    socket.broadcast.emit(
+      'nft:stock-updated',
+      event,
+    )
+
+    socket.emit('nft:stock-ack', event)
+  })
+
+  socket.on('nft.updated', (payload: unknown) => {
+    if (!isRecord(payload)) return
+
+    if (
+      !validId(payload.nftId) ||
+      !validVersion(payload.version)
+    ) {
+      return
+    }
+
+    const event = {
+      nftId: payload.nftId,
+      version: payload.version,
+      timestamp: new Date().toISOString(),
+    }
+
+    socket.broadcast.emit('nft.updated', event)
+    socket.emit('nft.updated.ack', event)
+  })
+
+  socket.on('order.updated', (payload: unknown) => {
+    if (!isRecord(payload)) return
+
+    if (
+      !validId(payload.orderId) ||
+      !validVersion(payload.version) ||
+      !(
+        payload.status === 'pending' ||
+        payload.status === 'confirmed' ||
+        payload.status === 'rejected'
       )
+    ) {
+      return
+    }
 
-      socket.emit('nft:stock-ack', event)
+    const event = {
+      orderId: payload.orderId,
+      status: payload.status,
+      version: payload.version,
+      timestamp: new Date().toISOString(),
+    }
 
-      console.log(
-        '[Socket.IO] Notificação de estoque:',
-        event,
-      )
-    },
-  )
+    socket.broadcast.emit('order.updated', event)
+    socket.emit('order.updated.ack', event)
+  })
 
   socket.on('disconnect', (reason) => {
     console.log(
@@ -172,9 +225,7 @@ httpServer.listen(PORT, '0.0.0.0', () => {
 })
 
 function shutdown() {
-  io.close(() => {
-    httpServer.close()
-  })
+  io.close()
 }
 
 process.on('SIGTERM', shutdown)

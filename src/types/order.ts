@@ -37,4 +37,10 @@ export interface Order {
   status: OrderStatus
   createdAt: string
   quote?: CheckoutQuote
+
+  // Pedidos antigos continuam compatíveis.
+  version?: number
+
+  // Versões dos NFTs após a atualização de estoque.
+  nftVersions?: Record<string, number>
 }
