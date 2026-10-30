@@ -11,7 +11,11 @@ export type PaymentScenario =
   | 'pending'
   | 'rejected'
 
+export type CheckoutNetwork = 'ethereum' | 'polygon'
+
 export interface CheckoutInput {
+  walletId?: string
+  network?: CheckoutNetwork
   requestId: string
   couponCode?: string
   paymentScenario?: PaymentScenario
@@ -36,6 +40,9 @@ export interface Order {
   totalEth: string
   status: OrderStatus
   createdAt: string
+  walletId?: string
+  walletAddress?: string
+  network?: CheckoutNetwork
   quote?: CheckoutQuote
 
   // Pedidos antigos continuam compatíveis.
