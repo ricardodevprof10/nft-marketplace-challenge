@@ -35,7 +35,7 @@ export const initialNFTs: NFT[] = Array.from(
       id: String(number),
       name: `Digital Artifact ${String(number).padStart(3, '0')}`,
       description: `Obra digital exclusiva número ${number}.`,
-      imageUrl: '/nft-placeholder.svg',
+      imageUrl: `/nfts/nft-${String((index % 8) + 1).padStart(3, '0')}.webp`,
       collection: collections[index % collections.length],
       creator: `Creator ${index % 6 + 1}`,
       priceEth: ethFromMilli(number * 125),
