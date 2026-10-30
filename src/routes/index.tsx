@@ -9,6 +9,9 @@ import { AppLayout } from '../components/layout/AppLayout'
 import { PagePlaceholder } from '../components/layout/PagePlaceholder'
 import { NFTMarketplacePage } from '../features/nfts/NFTMarketplacePage'
 import { NFTDetailPage } from '../features/nfts/NFTDetailPage'
+import { CartPage } from '../features/cart/CartPage'
+import { CheckoutPage } from '../features/checkout/CheckoutPage'
+import { OrderDetailPage } from '../features/checkout/OrderDetailPage'
 
 const rootRoute = createRootRoute({
   component: AppLayout,
@@ -66,23 +69,13 @@ const nftRoute = createRoute({
 const cartRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/cart',
-  component: () => (
-    <PagePlaceholder
-      title="Carrinho"
-      description="Itens e resumo da compra."
-    />
-  ),
+  component: CartPage,
 })
 
 const checkoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/checkout',
-  component: () => (
-    <PagePlaceholder
-      title="Pagamento"
-      description="Revisão e envio do pedido."
-    />
-  ),
+  component: CheckoutPage,
 })
 
 const loginRoute = createRoute({
@@ -132,12 +125,7 @@ const walletsRoute = createRoute({
 const orderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/orders/$orderId',
-  component: () => (
-    <PagePlaceholder
-      title="Pedido"
-      description="Estado e recibo da compra."
-    />
-  ),
+  component: OrderDetailPage,
 })
 
 const routeTree = rootRoute.addChildren([

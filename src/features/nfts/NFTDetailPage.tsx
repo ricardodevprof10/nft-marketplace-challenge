@@ -1,13 +1,27 @@
 
-import { useState } from 'react'
-import { Link, useParams } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from '@tanstack/react-router'
+
 import { useNFTDetail } from './useNFTDetail'
-import { Button } from '../../components/ui/button'
+import { useCartActions } from '../cart/useCart'
+
+const catalogSearch = {
+  search: '',
+  category: '',
+  sort: 'newest' as const,
+  page: 1,
+}
 
 export function NFTDetailPage() {
   const { nftId } = useParams({
     from: '/nft/$nftId',
   })
+
+  const navigate = useNavigate()
 
   const {
     data: nft,
@@ -16,7 +30,15 @@ export function NFTDetailPage() {
     refetch,
   } = useNFTDetail(nftId)
 
+  const { addItem } = useCartActions()
+
   const [quantity, setQuantity] = useState(1)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    setQuantity(1)
+    setMessage('')
+  }, [nftId])
 
   if (isPending) {
     return (
@@ -47,26 +69,22 @@ export function NFTDetailPage() {
           Não foi possível carregar os detalhes deste NFT.
         </p>
 
-        <div className="mt-6 flex gap-4">
-          <Button
+        <div className="mt-6 flex flex-wrap gap-4">
+          <button
+            type="button"
             onClick={() => void refetch()}
+            className="rounded-lg bg-red-600 px-5 py-3"
           >
             Tentar novamente
-          </Button>
+          </button>
 
-          <Button variant="outline" asChild>
-            <Link
-              to="/"
-              search={{
-                search: '',
-                category: '',
-                sort: 'newest',
-                page: 1,
-              }}
-            >
-              Voltar ao catálogo
-            </Link>
-          </Button>
+          <Link
+            to="/"
+            search={catalogSearch}
+            className="rounded-lg border border-neutral-700 px-5 py-3"
+          >
+            Voltar ao catálogo
+          </Link>
         </div>
       </main>
     )
@@ -74,26 +92,37 @@ export function NFTDetailPage() {
 
   const isSoldOut = nft.available <= 0
 
-  const decreaseQuantity = () => {
-    setQuantity((current) => Math.max(1, current - 1))
-  }
+  async function handleAddToCart() {
+    if (!nft || isSoldOut) return
 
-  const increaseQuantity = () => {
-    setQuantity((current) =>
-      Math.min(nft.available, current + 1),
-    )
+    setMessage('')
+
+    try {
+      await addItem.mutateAsync({
+        nftId: nft.id,
+        name: nft.name,
+        imageUrl: nft.imageUrl,
+        collection: nft.collection,
+        priceEth: nft.priceEth,
+        quantity,
+        available: nft.available,
+      })
+
+      await navigate({ to: '/cart' })
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível adicionar ao carrinho.',
+      )
+    }
   }
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-12">
       <Link
         to="/"
-        search={{
-          search: '',
-          category: '',
-          sort: 'newest',
-          page: 1,
-        }}
+        search={catalogSearch}
         className="mb-8 inline-block text-sm text-neutral-400 hover:text-white"
       >
         ← Voltar ao catálogo
@@ -156,14 +185,18 @@ export function NFTDetailPage() {
               </label>
 
               <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  onClick={decreaseQuantity}
-                  disabled={quantity <= 1}
-                  aria-label="Diminuir quantidade"
+                <button
+                  type="button"
+                  disabled={quantity <= 1 || addItem.isPending}
+                  onClick={() =>
+                    setQuantity((current) =>
+                      Math.max(1, current - 1),
+                    )
+                  }
+                  className="rounded-lg border border-neutral-700 px-5 py-3 disabled:opacity-40"
                 >
                   −
-                </Button>
+                </button>
 
                 <span
                   aria-live="polite"
@@ -172,31 +205,49 @@ export function NFTDetailPage() {
                   {quantity}
                 </span>
 
-                <Button
-                  variant="outline"
-                  onClick={increaseQuantity}
-                  disabled={quantity >= nft.available}
-                  aria-label="Aumentar quantidade"
+                <button
+                  type="button"
+                  disabled={
+                    quantity >= nft.available ||
+                    addItem.isPending
+                  }
+                  onClick={() =>
+                    setQuantity((current) =>
+                      Math.min(nft.available, current + 1),
+                    )
+                  }
+                  className="rounded-lg border border-neutral-700 px-5 py-3 disabled:opacity-40"
                 >
                   +
-                </Button>
+                </button>
               </div>
             </div>
           )}
 
-          <Button
-            size="lg"
-            className="w-full"
-            disabled
+          {message && (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-700 p-4 text-red-400"
+            >
+              {message}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => void handleAddToCart()}
+            disabled={isSoldOut || addItem.isPending}
+            className="w-full rounded-lg bg-red-600 px-6 py-4 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isSoldOut
               ? 'NFT esgotado'
-              : 'Adicionar ao carrinho — em desenvolvimento'}
-          </Button>
+              : addItem.isPending
+                ? 'Adicionando...'
+                : 'Adicionar ao carrinho'}
+          </button>
 
           <p className="text-xs text-neutral-500">
-            A integração com o carrinho será implementada
-            na próxima etapa. Nenhuma compra real é realizada.
+            Compra simulada. Nenhuma transação real é realizada.
           </p>
         </section>
       </div>
