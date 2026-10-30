@@ -242,6 +242,15 @@ export const orderHandlers = [
         {},
       )
 
+      const fingerprint = JSON.stringify({
+        userId: session.user.id,
+        walletId: wallet.id,
+        network: body.network,
+        couponCode: (body.couponCode ?? '').trim().toUpperCase(),
+        paymentScenario: body.paymentScenario ?? 'approved',
+        expectedTotalEth: body.expectedTotalEth,
+      })
+
       const previousId =
         requests[body.requestId]
 
@@ -252,6 +261,9 @@ export const orderHandlers = [
         )
 
         if (previous) {
+          if (previous.requestFingerprint !== fingerprint) {
+            return failure('Esta tentativa já foi usada com dados diferentes', 409)
+          }
           return HttpResponse.json(
             previous,
           )
@@ -282,6 +294,10 @@ export const orderHandlers = [
         )
       }
 
+      if (body.expectedTotalEth !== quote.totalEth) {
+        return failure('Os valores do pedido mudaram. Revise o resumo antes de confirmar.', 409)
+      }
+
       const scenario =
         body.paymentScenario ?? 'approved'
 
@@ -307,6 +323,7 @@ export const orderHandlers = [
           new Date().toISOString(),
         walletId: wallet.id,
         walletAddress: wallet.address,
+        requestFingerprint: fingerprint,
         network: body.network,
         version: 1,
         nftVersions: {},
