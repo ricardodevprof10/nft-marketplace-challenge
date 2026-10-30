@@ -13,6 +13,12 @@ import { CartPage } from '../features/cart/CartPage'
 import { CheckoutPage } from '../features/checkout/CheckoutPage'
 import { OrderDetailPage } from '../features/checkout/OrderDetailPage'
 
+import { LoginPage } from '../features/auth/LoginPage'
+import { RegisterPage } from '../features/auth/RegisterPage'
+import { ProfilePage } from '../features/auth/ProfilePage'
+import { ProtectedPage } from '../features/auth/ProtectedPage'
+import { WalletsPage } from '../features/wallets/WalletsPage'
+
 const rootRoute = createRootRoute({
   component: AppLayout,
   notFoundComponent: () => (
@@ -81,33 +87,22 @@ const checkoutRoute = createRoute({
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  component: () => (
-    <PagePlaceholder
-      title="Login"
-      description="Acesso à conta do colecionador."
-    />
-  ),
+  component: LoginPage,
 })
 
 const registerRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/register',
-  component: () => (
-    <PagePlaceholder
-      title="Cadastro"
-      description="Criação de uma nova conta."
-    />
-  ),
+  component: RegisterPage,
 })
 
 const profileRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/profile',
   component: () => (
-    <PagePlaceholder
-      title="Perfil"
-      description="Dados e configurações da conta."
-    />
+    <ProtectedPage>
+      <ProfilePage />
+    </ProtectedPage>
   ),
 })
 
@@ -115,10 +110,9 @@ const walletsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/wallets',
   component: () => (
-    <PagePlaceholder
-      title="Carteiras"
-      description="Gerenciamento de carteiras digitais."
-    />
+    <ProtectedPage>
+      <WalletsPage />
+    </ProtectedPage>
   ),
 })
 
