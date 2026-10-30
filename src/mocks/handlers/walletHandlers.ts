@@ -86,17 +86,42 @@ export const walletHandlers = [
       return error('Carteira já cadastrada', 409)
     }
 
+    const makePrimary = body.isPrimary === true || !wallets.some(entry => entry.userId === userId && entry.isPrimary)
+    if (makePrimary) saveWallets(wallets.map(entry => entry.userId === userId ? { ...entry, isPrimary: false } : entry))
+
     const wallet: Wallet = {
       id: crypto.randomUUID(),
       userId,
       label,
       address,
       createdAt: new Date().toISOString(),
+      isPrimary: makePrimary,
     }
 
-    saveWallets([...wallets, wallet])
+    saveWallets([...wallets.map(entry => makePrimary && entry.userId === userId ? { ...entry, isPrimary: false } : entry), wallet])
 
     return HttpResponse.json(wallet, { status: 201 })
+  }),
+
+  http.patch('/api/wallets/:walletId', async ({ params, request }) => {
+    const userId = currentUserId()
+    if (!userId) return error('Não autenticado', 401)
+    const wallets = readWallets()
+    const wallet = wallets.find(entry => entry.id === String(params.walletId) && entry.userId === userId)
+    if (!wallet) return error('Carteira não encontrada', 404)
+    const body = await request.json() as CreateWalletInput
+    const label = body.label?.trim()
+    const address = body.address?.trim()
+    if (!label || label.length > 60 || !address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return error('Nome ou endereço Ethereum inválido', 400)
+    }
+    if (wallets.some(entry => entry.userId === userId && entry.id !== wallet.id && entry.address.toLowerCase() === address.toLowerCase())) {
+      return error('Carteira já cadastrada', 409)
+    }
+    const makePrimary = body.isPrimary === true || (wallet.isPrimary === true && !wallets.some(entry => entry.userId === userId && entry.id !== wallet.id && entry.isPrimary))
+    const updated: Wallet = { ...wallet, label, address, isPrimary: makePrimary }
+    saveWallets(wallets.map(entry => entry.id === wallet.id ? updated : makePrimary && entry.userId === userId ? { ...entry, isPrimary: false } : entry))
+    return HttpResponse.json(updated)
   }),
 
   http.delete('/api/wallets/:walletId', ({ params }) => {
@@ -116,9 +141,12 @@ export const walletHandlers = [
       return error('Carteira não encontrada', 404)
     }
 
-    saveWallets(
-      wallets.filter((entry) => entry.id !== wallet.id),
-    )
+    const remaining = wallets.filter(entry => entry.id !== wallet.id)
+    if (wallet.isPrimary) {
+      const next = remaining.find(entry => entry.userId === userId)
+      if (next) next.isPrimary = true
+    }
+    saveWallets(remaining)
 
     return HttpResponse.json({ success: true })
   }),

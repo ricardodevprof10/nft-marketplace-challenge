@@ -9,9 +9,28 @@ export type MockDatabase = {
   favoritesByUser: Record<string, string[]>
 }
 
+function normalizeVersion(value: unknown): number {
+  if (
+    typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value >= 1
+  ) {
+    return value
+  }
+
+  return 1
+}
+
+function normalizeNFT(nft: NFT): NFT {
+  return {
+    ...nft,
+    version: normalizeVersion(nft.version),
+  }
+}
+
 function createInitialDatabase(): MockDatabase {
   return {
-    nfts: structuredClone(initialNFTs),
+    nfts: structuredClone(initialNFTs).map(normalizeNFT),
     favoritesByUser: {},
   }
 }
@@ -42,10 +61,7 @@ function normalizeFavorites(
   const result: Record<string, string[]> = {}
 
   for (const [userId, nftIds] of Object.entries(value)) {
-    if (
-      !userId.trim() ||
-      !Array.isArray(nftIds)
-    ) {
+    if (!userId.trim() || !Array.isArray(nftIds)) {
       continue
     }
 
@@ -72,7 +88,7 @@ function loadDatabase(): MockDatabase {
 
       if (isDatabase(parsed)) {
         return {
-          nfts: parsed.nfts,
+          nfts: parsed.nfts.map(normalizeNFT),
           favoritesByUser: normalizeFavorites(
             parsed.favoritesByUser,
           ),
@@ -80,8 +96,8 @@ function loadDatabase(): MockDatabase {
       }
     }
   } catch {
-    // Recupera os dados iniciais quando o armazenamento
-    // estiver indisponível ou contiver JSON inválido.
+    // Recupera os dados iniciais se o armazenamento
+    // estiver indisponível ou inválido.
   }
 
   return createInitialDatabase()
@@ -119,7 +135,18 @@ export function updateNFT(
     return null
   }
 
-  Object.assign(nft, changes)
+  const { version: _ignoredVersion, ...safeChanges } =
+    changes
+
+  void _ignoredVersion
+
+  const nextVersion =
+    normalizeVersion(nft.version) + 1
+
+  Object.assign(nft, safeChanges, {
+    version: nextVersion,
+  })
+
   saveDatabase()
 
   return nft
