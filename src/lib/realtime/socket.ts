@@ -37,7 +37,8 @@ export function getSocket(): Socket {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
-      transports: ['websocket', 'polling'],
+      // Começa por polling, confirmado no Render, e tenta upgrade para WebSocket.
+      transports: ['polling', 'websocket'],
     })
   }
 
