@@ -54,6 +54,7 @@ function currentUser(): User | null {
 function validEmail(value: string) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) }
 function validAvatar(value: string) {
   if (!value) return true
+  if (/^data:image\/webp;base64,[A-Za-z0-9+/]+={0,2}$/.test(value) && value.length <= 150000) return true
   try {
     const url = new URL(value)
     return url.protocol === 'https:' && value.length <= 2048
