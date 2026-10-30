@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#171717"/>
+      <stop offset="100%" stop-color="#450a0a"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#bg)"/>
+  <circle cx="300" cy="250" r="130" fill="none" stroke="#ef4444" stroke-width="5"/>
+  <path d="M300 110 L410 300 L300 410 L190 300 Z" fill="#991b1b" stroke="#f87171" stroke-width="5"/>
+  <text x="300" y="490" text-anchor="middle" font-family="Arial" font-size="34" font-weight="bold" fill="#fff">DIGITAL NFT</text>
+</svg>

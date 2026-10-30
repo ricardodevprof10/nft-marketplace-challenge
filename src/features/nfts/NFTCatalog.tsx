@@ -59,13 +59,24 @@ export function NFTCatalog() {
     )
   }
 
-  if (!data || data.items.length === 0) {
-    return (
-      <p role="status" className="py-12 text-neutral-400">
-        Nenhum NFT encontrado.
+ 
+if (!data || !Array.isArray(data.items) || data.items.length === 0) {
+  return (
+    <div
+      role="status"
+      className="rounded-xl border border-neutral-800 p-8"
+    >
+      <h2 className="text-xl font-semibold">
+        Nenhum NFT disponível
+      </h2>
+
+      <p className="mt-3 text-neutral-400">
+        Não foi possível encontrar NFTs na resposta da API.
       </p>
-    )
-  }
+    </div>
+  )
+}
+
 
   return (
     <section

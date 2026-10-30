@@ -19,6 +19,15 @@ export const nftService = {
       },
     )
 
+    if (
+      !response.data ||
+      !Array.isArray(response.data.items)
+    ) {
+      throw new Error(
+        'A API retornou um formato inválido para o catálogo.',
+      )
+    }
+
     return response.data
   },
 
