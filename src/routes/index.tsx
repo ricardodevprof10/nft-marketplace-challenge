@@ -1,5 +1,4 @@
 
-import { NFTCatalog } from '../features/nfts/NFTCatalog'
 import {
   createRootRoute,
   createRoute,
@@ -8,6 +7,7 @@ import {
 
 import { AppLayout } from '../components/layout/AppLayout'
 import { PagePlaceholder } from '../components/layout/PagePlaceholder'
+import { NFTMarketplacePage } from '../features/nfts/NFTMarketplacePage'
 
 const rootRoute = createRootRoute({
   component: AppLayout,
@@ -19,31 +19,44 @@ const rootRoute = createRootRoute({
   ),
 })
 
-
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: () => (
-    <main className="mx-auto min-h-[70vh] max-w-7xl px-5 py-12">
-      <header className="mb-10">
-        <p className="mb-3 text-sm font-semibold text-red-500">
-          NFT Marketplace
-        </p>
+  validateSearch: (search: Record<string, unknown>) => {
+    const sortOptions = [
+      'newest',
+      'price_asc',
+      'price_desc',
+    ] as const
 
-        <h1 className="text-4xl font-bold md:text-5xl">
-          Explore NFTs
-        </h1>
+    const rawSort = search.sort
 
-        <p className="mt-4 text-neutral-400">
-          Descubra coleções digitais e novas oportunidades.
-        </p>
-      </header>
+    const sort =
+      typeof rawSort === 'string' &&
+      sortOptions.some((option) => option === rawSort)
+        ? (rawSort as (typeof sortOptions)[number])
+        : 'newest'
 
-      <NFTCatalog />
-    </main>
-  ),
+    const rawPage = Number(search.page ?? 1)
+
+    return {
+      search:
+        typeof search.search === 'string'
+          ? search.search
+          : '',
+      category:
+        typeof search.category === 'string'
+          ? search.category
+          : '',
+      sort,
+      page:
+        Number.isSafeInteger(rawPage) && rawPage > 0
+          ? rawPage
+          : 1,
+    }
+  },
+  component: NFTMarketplacePage,
 })
-
 
 const nftRoute = createRoute({
   getParentRoute: () => rootRoute,
