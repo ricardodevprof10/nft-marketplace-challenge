@@ -1,7 +1,33 @@
 
 import type { CartItem } from './cart'
 
-export type OrderStatus = 'confirmed'
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'rejected'
+
+export type PaymentScenario =
+  | 'approved'
+  | 'pending'
+  | 'rejected'
+
+export interface CheckoutInput {
+  requestId: string
+  couponCode?: string
+  paymentScenario?: PaymentScenario
+}
+
+export interface CheckoutQuote {
+  subtotalEth: string
+  discountEth: string
+  feeEth: string
+  totalEth: string
+  totalUsd: string
+  ethUsdRate: string
+  couponCode: string | null
+  feePercent: number
+  isDemoRate: boolean
+}
 
 export interface Order {
   id: string
@@ -10,8 +36,5 @@ export interface Order {
   totalEth: string
   status: OrderStatus
   createdAt: string
-}
-
-export interface CheckoutInput {
-  requestId: string
+  quote?: CheckoutQuote
 }

@@ -4,6 +4,7 @@ import { cartHandlers } from './cartHandlers'
 import { orderHandlers } from './orderHandlers'
 import { authHandlers } from './authHandlers'
 import { walletHandlers } from './walletHandlers'
+import { favoriteHandlers } from './favoriteHandlers'
 
 export const handlers = [
   ...nftHandlers,
@@ -11,4 +12,5 @@ export const handlers = [
   ...orderHandlers,
   ...authHandlers,
   ...walletHandlers,
+  ...favoriteHandlers,
 ]

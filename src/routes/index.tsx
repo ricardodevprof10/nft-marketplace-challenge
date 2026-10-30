@@ -7,8 +7,11 @@ import {
 
 import { AppLayout } from '../components/layout/AppLayout'
 import { PagePlaceholder } from '../components/layout/PagePlaceholder'
+
 import { NFTMarketplacePage } from '../features/nfts/NFTMarketplacePage'
 import { NFTDetailPage } from '../features/nfts/NFTDetailPage'
+import { FavoritesPage } from '../features/nfts/FavoritesPage'
+
 import { CartPage } from '../features/cart/CartPage'
 import { CheckoutPage } from '../features/checkout/CheckoutPage'
 import { OrderDetailPage } from '../features/checkout/OrderDetailPage'
@@ -17,6 +20,7 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { RegisterPage } from '../features/auth/RegisterPage'
 import { ProfilePage } from '../features/auth/ProfilePage'
 import { ProtectedPage } from '../features/auth/ProtectedPage'
+
 import { WalletsPage } from '../features/wallets/WalletsPage'
 
 const rootRoute = createRootRoute({
@@ -41,7 +45,9 @@ const homeRoute = createRoute({
 
     const sort =
       typeof search.sort === 'string' &&
-      validSorts.some((value) => value === search.sort)
+      validSorts.some(
+        (value) => value === search.sort,
+      )
         ? (search.sort as (typeof validSorts)[number])
         : 'newest'
 
@@ -58,7 +64,8 @@ const homeRoute = createRoute({
           : '',
       sort,
       page:
-        Number.isSafeInteger(rawPage) && rawPage > 0
+        Number.isSafeInteger(rawPage) &&
+        rawPage > 0
           ? rawPage
           : 1,
     }
@@ -70,6 +77,16 @@ const nftRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/nft/$nftId',
   component: NFTDetailPage,
+})
+
+const favoritesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/favorites',
+  component: () => (
+    <ProtectedPage>
+      <FavoritesPage />
+    </ProtectedPage>
+  ),
 })
 
 const cartRoute = createRoute({
@@ -125,6 +142,7 @@ const orderRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   homeRoute,
   nftRoute,
+  favoritesRoute,
   cartRoute,
   checkoutRoute,
   loginRoute,

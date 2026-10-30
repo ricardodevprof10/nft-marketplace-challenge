@@ -36,6 +36,9 @@ export function RegisterPage() {
     }
   }
 
+  const inputClassName =
+    'w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-white outline-none transition-colors focus:border-red-500 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950'
+
   return (
     <main className="mx-auto min-h-[70vh] max-w-md px-5 py-16">
       <h1 className="text-4xl font-bold">
@@ -60,14 +63,16 @@ export function RegisterPage() {
 
           <input
             id="register-name"
+            type="text"
             required
             minLength={2}
             maxLength={100}
+            autoComplete="name"
             value={name}
             onChange={(event) =>
               setName(event.target.value)
             }
-            className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 outline-none focus:border-red-500"
+            className={inputClassName}
           />
         </div>
 
@@ -88,7 +93,7 @@ export function RegisterPage() {
             onChange={(event) =>
               setEmail(event.target.value)
             }
-            className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 outline-none focus:border-red-500"
+            className={inputClassName}
           />
         </div>
 
@@ -110,12 +115,15 @@ export function RegisterPage() {
             onChange={(event) =>
               setPassword(event.target.value)
             }
-            className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 outline-none focus:border-red-500"
+            className={inputClassName}
           />
         </div>
 
         {error && (
-          <p role="alert" className="text-sm text-red-400">
+          <p
+            role="alert"
+            className="text-sm text-red-400"
+          >
             {error}
           </p>
         )}
@@ -123,7 +131,7 @@ export function RegisterPage() {
         <button
           type="submit"
           disabled={register.isPending}
-          className="w-full rounded-lg bg-red-600 px-5 py-3 font-semibold hover:bg-red-700 disabled:opacity-50"
+          className="w-full rounded-lg bg-red-600 px-5 py-3 font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {register.isPending
             ? 'Cadastrando...'
@@ -135,13 +143,13 @@ export function RegisterPage() {
         Já possui conta?{' '}
         <Link
           to="/login"
-          className="text-red-400 hover:underline"
+          className="font-semibold text-red-400 underline underline-offset-4 transition-colors hover:text-red-300 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-400"
         >
           Entrar
         </Link>
       </p>
 
-      <p className="mt-8 text-xs leading-5 text-neutral-500">
+      <p className="mt-8 text-xs leading-5 text-neutral-400">
         Utilize somente dados fictícios. A senha não é
         armazenada nem verificada neste protótipo.
       </p>

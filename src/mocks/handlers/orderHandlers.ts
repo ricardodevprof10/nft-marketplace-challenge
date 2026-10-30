@@ -1,74 +1,137 @@
 
 import { http, HttpResponse } from 'msw'
 import type { CartItem } from '../../types/cart'
-import type { Order, CheckoutInput } from '../../types/order'
-import { getDatabase, updateNFT } from '../store/database'
+import type {
+  Order,
+  CheckoutInput,
+  PaymentScenario,
+} from '../../types/order'
+import {
+  getDatabase,
+  updateNFT,
+} from '../store/database'
+import { calculateQuote } from '../../lib/checkout/pricing'
 
 const CART_KEY = 'nft-marketplace-cart-v1'
 const ORDERS_KEY = 'nft-marketplace-orders-v1'
-const REQUESTS_KEY = 'nft-marketplace-checkout-requests-v1'
+const REQUESTS_KEY =
+  'nft-marketplace-checkout-requests-v1'
 
 function readJSON<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : fallback
+    return raw ? JSON.parse(raw) as T : fallback
   } catch {
     return fallback
   }
 }
 
+function failure(message: string, status: number) {
+  return HttpResponse.json(
+    { message },
+    { status },
+  )
+}
+
 function readCart(): CartItem[] {
-  const items = readJSON<unknown>(CART_KEY, [])
+  const value = readJSON<unknown>(CART_KEY, [])
 
-  if (!Array.isArray(items)) return []
+  if (!Array.isArray(value)) return []
 
-  return items.filter((item): item is CartItem => {
-    if (!item || typeof item !== 'object') return false
+  return value.filter((item): item is CartItem => {
+    if (!item || typeof item !== 'object') {
+      return false
+    }
 
-    const value = item as Record<string, unknown>
+    const data = item as Record<string, unknown>
 
     return (
-      typeof value.nftId === 'string' &&
-      typeof value.quantity === 'number' &&
-      Number.isSafeInteger(value.quantity) &&
-      value.quantity > 0
+      typeof data.nftId === 'string' &&
+      typeof data.quantity === 'number' &&
+      Number.isSafeInteger(data.quantity) &&
+      data.quantity > 0
     )
   })
 }
 
-function ethToWei(value: string): bigint {
-  if (!/^\d+(\.\d{1,18})?$/.test(value)) {
-    throw new Error('Preço inválido')
+function validateCart(): CartItem[] {
+  const cart = readCart()
+  const database = getDatabase()
+
+  if (cart.length === 0) {
+    throw new Error('O carrinho está vazio')
   }
 
-  const [whole, fraction = ''] = value.split('.')
+  const seen = new Set<string>()
 
+  return cart.map((item) => {
+    if (seen.has(item.nftId)) {
+      throw new Error('NFT duplicado no carrinho')
+    }
+
+    seen.add(item.nftId)
+
+    const nft = database.nfts.find(
+      (entry) => entry.id === item.nftId,
+    )
+
+    if (!nft) {
+      throw new Error('NFT não encontrado')
+    }
+
+    if (item.quantity > nft.available) {
+      throw new Error(
+        `Estoque insuficiente para ${nft.name}`,
+      )
+    }
+
+    return {
+      nftId: nft.id,
+      name: nft.name,
+      imageUrl: nft.imageUrl,
+      collection: nft.collection,
+      priceEth: nft.priceEth,
+      quantity: item.quantity,
+      available: nft.available,
+    }
+  })
+}
+
+function isScenario(
+  value: unknown,
+): value is PaymentScenario {
   return (
-    BigInt(whole) * 10n ** 18n +
-    BigInt(fraction.padEnd(18, '0'))
+    value === 'approved' ||
+    value === 'pending' ||
+    value === 'rejected'
   )
 }
 
-function weiToEth(value: bigint): string {
-  const whole = value / 10n ** 18n
-  const fraction = (value % (10n ** 18n))
-    .toString()
-    .padStart(18, '0')
-    .replace(/0+$/, '')
-
-  return fraction ? `${whole}.${fraction}` : String(whole)
-}
-
-function failure(message: string, status: number) {
-  return HttpResponse.json({ message }, { status })
-}
-
 export const orderHandlers = [
+  http.get('/api/checkout/quote', ({ request }) => {
+    const url = new URL(request.url)
+    const coupon = url.searchParams.get('coupon') ?? ''
+
+    try {
+      const items = validateCart()
+      return HttpResponse.json(
+        calculateQuote(items, coupon),
+      )
+    } catch (error) {
+      return failure(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível calcular o pedido',
+        400,
+      )
+    }
+  }),
+
   http.post('/api/checkout', async ({ request }) => {
     let body: CheckoutInput
 
     try {
-      body = (await request.json()) as CheckoutInput
+      body = await request.json() as CheckoutInput
     } catch {
       return failure('Requisição inválida', 400)
     }
@@ -76,9 +139,13 @@ export const orderHandlers = [
     if (
       !body ||
       typeof body.requestId !== 'string' ||
-      body.requestId.length < 8
+      body.requestId.length < 8 ||
+      (body.couponCode !== undefined &&
+        typeof body.couponCode !== 'string') ||
+      (body.paymentScenario !== undefined &&
+        !isScenario(body.paymentScenario))
     ) {
-      return failure('Identificador de requisição inválido', 400)
+      return failure('Dados do checkout inválidos', 400)
     }
 
     const orders = readJSON<Order[]>(ORDERS_KEY, [])
@@ -87,78 +154,83 @@ export const orderHandlers = [
       {},
     )
 
-    const previousOrderId = requests[body.requestId]
+    const previousId = requests[body.requestId]
 
-    if (previousOrderId) {
+    if (previousId) {
       const previous = orders.find(
-        (order) => order.id === previousOrderId,
+        (order) => order.id === previousId,
       )
 
       if (previous) {
         return HttpResponse.json(previous)
       }
-    }
 
-    const cart = readCart()
-
-    if (cart.length === 0) {
-      return failure('O carrinho está vazio', 400)
-    }
-
-    const database = getDatabase()
-    const validatedItems: CartItem[] = []
-
-    for (const item of cart) {
-      const nft = database.nfts.find(
-        (entry) => entry.id === item.nftId,
+      return failure(
+        'Tentativa anterior inconsistente',
+        409,
       )
-
-      if (!nft) {
-        return failure(
-          `NFT ${item.nftId} não encontrado`,
-          404,
-        )
-      }
-
-      if (item.quantity > nft.available) {
-        return failure(
-          `Estoque insuficiente para ${nft.name}`,
-          409,
-        )
-      }
-
-      validatedItems.push({
-        nftId: nft.id,
-        name: nft.name,
-        imageUrl: nft.imageUrl,
-        collection: nft.collection,
-        priceEth: nft.priceEth,
-        quantity: item.quantity,
-        available: nft.available,
-      })
     }
 
-    const totalWei = validatedItems.reduce(
-      (total, item) =>
-        total +
-        ethToWei(item.priceEth) * BigInt(item.quantity),
-      0n,
-    )
+    let items: CartItem[]
+    let quote
+
+    try {
+      items = validateCart()
+      quote = calculateQuote(
+        items,
+        body.couponCode,
+      )
+    } catch (error) {
+      return failure(
+        error instanceof Error
+          ? error.message
+          : 'Pedido inválido',
+        409,
+      )
+    }
+
+    const scenario =
+      body.paymentScenario ?? 'approved'
+
+    const status =
+      scenario === 'approved'
+        ? 'confirmed'
+        : scenario === 'pending'
+          ? 'pending'
+          : 'rejected'
 
     const order: Order = {
       id: crypto.randomUUID(),
-      items: validatedItems,
-      totalItems: validatedItems.reduce(
-        (total, item) => total + item.quantity,
+      items,
+      totalItems: items.reduce(
+        (sum, item) => sum + item.quantity,
         0,
       ),
-      totalEth: weiToEth(totalWei),
-      status: 'confirmed',
+      totalEth: quote.totalEth,
+      quote,
+      status,
       createdAt: new Date().toISOString(),
     }
 
+    const previousOrdersRaw =
+      localStorage.getItem(ORDERS_KEY)
+    const previousRequestsRaw =
+      localStorage.getItem(REQUESTS_KEY)
+    const previousCartRaw =
+      localStorage.getItem(CART_KEY)
+
+    const stockSnapshot = items.map((item) => {
+      const nft = getDatabase().nfts.find(
+        (entry) => entry.id === item.nftId,
+      )
+
+      return {
+        nftId: item.nftId,
+        available: nft?.available ?? 0,
+      }
+    })
+
     try {
-      // Salva o pedido antes de alterar o estoque.
       localStorage.setItem(
         ORDERS_KEY,
         JSON.stringify([...orders, order]),
@@ -172,27 +244,62 @@ export const orderHandlers = [
         }),
       )
 
-      for (const item of validatedItems) {
-        const nft = database.nfts.find(
-          (entry) => entry.id === item.nftId,
+      if (status === 'confirmed') {
+        for (const item of items) {
+          const nft = getDatabase().nfts.find(
+            (entry) => entry.id === item.nftId,
+          )
+
+          if (!nft) {
+            throw new Error('NFT indisponível')
+          }
+
+          updateNFT(nft.id, {
+            available: nft.available - item.quantity,
+          })
+        }
+
+        localStorage.setItem(
+          CART_KEY,
+          JSON.stringify([]),
         )
+      }
+    } catch {
+      try {
+        for (const snapshot of stockSnapshot) {
+          updateNFT(snapshot.nftId, {
+            available: snapshot.available,
+          })
+        }
 
-        if (!nft) continue
+        const restore = (
+          key: string,
+          previous: string | null,
+        ) => {
+          if (previous === null) {
+            localStorage.removeItem(key)
+          } else {
+            localStorage.setItem(key, previous)
+          }
+        }
 
-        updateNFT(nft.id, {
-          available: nft.available - item.quantity,
-        })
+        restore(ORDERS_KEY, previousOrdersRaw)
+        restore(REQUESTS_KEY, previousRequestsRaw)
+        restore(CART_KEY, previousCartRaw)
+      } catch {
+        // Uma falha de armazenamento pode impedir
+        // a recuperação completa no ambiente mock.
       }
 
-      localStorage.setItem(CART_KEY, JSON.stringify([]))
-    } catch {
       return failure(
         'Falha ao persistir o pedido simulado',
         500,
       )
     }
 
-    return HttpResponse.json(order, { status: 201 })
+    return HttpResponse.json(order, {
+      status: 201,
+    })
   }),
 
   http.get('/api/orders/:orderId', ({ params }) => {

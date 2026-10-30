@@ -4,10 +4,20 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-
 import { orderService } from './orderService'
 import { cartQueryKey } from '../cart/useCart'
+import { notifyStockChanged } from '../../lib/realtime/socket'
 import type { CheckoutInput } from '../../types/order'
+
+export function useCheckoutQuote(couponCode: string) {
+  return useQuery({
+    queryKey: ['checkout', 'quote', couponCode],
+    queryFn: ({ signal }) =>
+      orderService.quote(couponCode, signal),
+    retry: false,
+    staleTime: 0,
+  })
+}
 
 export function useCheckout() {
   const queryClient = useQueryClient()
@@ -22,17 +32,27 @@ export function useCheckout() {
         order,
       )
 
-      await queryClient.invalidateQueries({
-        queryKey: cartQueryKey,
-      })
+      if (order.status === 'confirmed') {
+        notifyStockChanged(
+          order.items.map((item) => item.nftId),
+          order.id,
+        )
+      }
 
-      await queryClient.invalidateQueries({
-        queryKey: ['nfts'],
-      })
-
-      await queryClient.invalidateQueries({
-        queryKey: ['nft'],
-      })
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: cartQueryKey,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['nfts'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['nft'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['checkout', 'quote'],
+        }),
+      ])
     },
   })
 }
