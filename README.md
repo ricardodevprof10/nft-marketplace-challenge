@@ -83,7 +83,7 @@ O servidor Socket.IO é executado separadamente e retransmite notificações de 
 Clone o repositório:
 
 ```bash
-git clone https://github.com/SEU-USUARIO/nft-marketplace-challenge.git
+git clone https://github.com/ricardodevprof10/nft-marketplace-challenge.git
 ```
 
 Acesse a pasta:
@@ -105,6 +105,7 @@ Crie o arquivo `.env.local` com:
 ```env
 VITE_ENABLE_MOCKS=true
 VITE_API_URL=/api
+VITE_SOCKET_URL=https://nft-marketplace-realtime.onrender.com
 ```
 
 O MSW deve estar habilitado para executar as funcionalidades demonstrativas.
@@ -125,7 +126,7 @@ npm run dev
 
 Abra o endereço informado pelo Vite.
 
-O Socket.IO utiliza, por padrão, a porta `3001`. O frontend utiliza o proxy configurado no Vite.
+O Socket.IO utiliza, por padrão, a porta `3001`. Para desenvolvimento local com o servidor Socket.IO executado no mesmo ambiente, deixe `VITE_SOCKET_URL` vazio para usar o proxy do Vite. Para conectar ao serviço publicado, configure `VITE_SOCKET_URL` com a URL pública do Render. O servidor permite apenas origens definidas em `FRONTEND_URLS` (separadas por vírgula). O frontend publicado é https://nft-marketplace-jungle-web.onrender.com/.
 
 ## Testes automatizados
 
@@ -193,5 +194,4 @@ Demonstrar competências em desenvolvimento frontend, organização de código, 
 
 ## Autor
 
-Ricardo de Brito ricardobrito10antifa@gmail.com  34984431825
-Desenvolvido como projeto de avaliação técnica para uma oportunidade profissional em desenvolvimento frontend.
+Projeto desenvolvido por Ricardo de Brito como avaliação técnica de desenvolvimento frontend.
