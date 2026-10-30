@@ -2,6 +2,8 @@
 import { http, HttpResponse } from 'msw'
 
 import type { CartItem } from '../../types/cart'
+import type { Wallet } from '../../types/wallet'
+import type { AuthSession } from '../../types/auth'
 
 import type {
   Order,
@@ -18,6 +20,8 @@ import {
 import { calculateQuote } from '../../lib/checkout/pricing'
 
 const CART_KEY = 'nft-marketplace-cart-v1'
+const WALLETS_KEY = 'nft-marketplace-wallets-v1'
+const SESSION_KEY = 'nft-marketplace-session-v1'
 const ORDERS_KEY = 'nft-marketplace-orders-v1'
 const REQUESTS_KEY =
   'nft-marketplace-checkout-requests-v1'
@@ -216,6 +220,16 @@ export const orderHandlers = [
         )
       }
 
+      const session = readJSON<AuthSession | null>(SESSION_KEY, null)
+      if (!session?.user?.id) return failure('Entre na sua conta para finalizar a compra', 401)
+      if (!body.walletId || (body.network !== 'ethereum' && body.network !== 'polygon')) {
+        return failure('Selecione uma carteira e uma rede', 400)
+      }
+      const wallet = readJSON<Wallet[]>(WALLETS_KEY, []).find(
+        entry => entry.id === body.walletId && entry.userId === session.user.id,
+      )
+      if (!wallet) return failure('Carteira não encontrada para esta conta', 403)
+
       const orders = readJSON<Order[]>(
         ORDERS_KEY,
         [],
@@ -291,6 +305,9 @@ export const orderHandlers = [
         status,
         createdAt:
           new Date().toISOString(),
+        walletId: wallet.id,
+        walletAddress: wallet.address,
+        network: body.network,
         version: 1,
         nftVersions: {},
       }
