@@ -11,6 +11,7 @@ import {
 } from './useCheckout'
 import type { PaymentScenario, CheckoutNetwork } from '../../types/order'
 import { useWallets } from '../wallets/useWallets'
+import { orderService } from './orderService'
 
 export function CheckoutPage() {
   const navigate = useNavigate()
@@ -66,8 +67,17 @@ export function CheckoutPage() {
     }
 
     try {
+      const latestQuote = await orderService.quote(appliedCoupon)
+      if (latestQuote.totalEth !== quote.data.totalEth || latestQuote.subtotalEth !== quote.data.subtotalEth || latestQuote.discountEth !== quote.data.discountEth || latestQuote.feeEth !== quote.data.feeEth) {
+        requestId.current = null
+        await quote.refetch()
+        setErrorMessage('Os valores foram atualizados. Confira o novo resumo e confirme novamente.')
+        return
+      }
+
       const order = await checkout.mutateAsync({
         requestId: requestId.current,
+        expectedTotalEth: latestQuote.totalEth,
         couponCode: appliedCoupon,
         paymentScenario: scenario,
         walletId,
@@ -79,10 +89,13 @@ export function CheckoutPage() {
         params: { orderId: order.id },
       })
     } catch (error) {
+      const responseMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+      if ((error as { response?: { status?: number } })?.response?.status === 409) {
+        requestId.current = null
+        await quote.refetch()
+      }
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'Não foi possível registrar o pedido.',
+        responseMessage ?? (error instanceof Error ? error.message : 'Não foi possível registrar o pedido.'),
       )
     } finally {
       submitting.current = false
